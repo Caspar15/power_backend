@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from flask import Flask, jsonify, request
 
@@ -38,6 +38,23 @@ def create_app() -> Flask:
     def health() -> Any:
         return {"status": "ok", "data_file": str(DATA_PATH)}
 
+    def _build_payload(notice: dict[str, Any], include_groups: bool) -> dict[str, Any]:
+        payload = {
+            "date": notice.get("date"),
+            "time_window": notice.get("time_window"),
+            "reason": notice.get("reason"),
+            "type": notice.get("type"),
+            "cities": notice.get("cities"),
+            "areas": notice.get("areas"),
+            "addresses": notice.get("addresses"),
+            "address_entry_count": notice.get("address_entry_count"),
+            "address_streets": notice.get("address_streets"),
+            "address_group_counts": notice.get("address_group_counts"),
+        }
+        if include_groups:
+            payload["address_groups"] = notice.get("address_groups")
+        return payload
+
     def _filter_outages(
         *,
         date_filter: Optional[str],
@@ -45,9 +62,8 @@ def create_app() -> Flask:
         area_filter: Optional[str],
         include_groups: bool,
     ) -> list[dict[str, Any]]:
-        data = store.get()
         outages: list[dict[str, Any]] = []
-        for branch in data.get("branches", []):
+        for branch in store.get().get("branches", []):
             for notice in branch.get("notices", []):
                 if date_filter and notice.get("date") != date_filter:
                     continue
@@ -55,54 +71,44 @@ def create_app() -> Flask:
                     continue
                 if area_filter and area_filter not in (notice.get("areas") or []):
                     continue
-                payload = {
-                    "date": notice.get("date"),
-                    "time_window": notice.get("time_window"),
-                    "reason": notice.get("reason"),
-                    "type": notice.get("type"),
-                    "areas": notice.get("areas"),
-                    "addresses": notice.get("addresses"),
-                    "address_entry_count": notice.get("address_entry_count"),
-                    "address_streets": notice.get("address_streets"),
-                    "address_group_counts": notice.get("address_group_counts"),
-                }
-                if include_groups:
-                    payload["address_groups"] = notice.get("address_groups")
-                outages.append(payload)
+                outages.append(_build_payload(notice, include_groups))
         return outages
+
+    def _parse_include_groups(value: Any) -> bool:
+        if isinstance(value, bool):
+            return value
+        if value is None:
+            return False
+        return str(value).lower() in {"1", "true", "yes"}
 
     @app.get("/outages")
     def list_outages_get() -> Any:
         date_filter = request.args.get("date")
         street_filter = request.args.get("street")
         area_filter = request.args.get("area")
-        include_groups = request.args.get("include_groups", "false").lower() in (
-            "1",
-            "true",
-            "yes",
-        )
+        include_groups = _parse_include_groups(request.args.get("include_groups"))
         outages = _filter_outages(
             date_filter=date_filter,
             street_filter=street_filter,
             area_filter=area_filter,
             include_groups=include_groups,
         )
-        return jsonify({"count": len(outages), "outages": outages})
+        return jsonify(outages)
 
     @app.post("/outages/query")
     def list_outages_post() -> Any:
-        payload = request.get_json(force=True) or {}
+        payload = request.get_json(silent=True) or {}
         date_filter = payload.get("date")
         street_filter = payload.get("street")
         area_filter = payload.get("area")
-        include_groups = bool(payload.get("include_groups"))
+        include_groups = _parse_include_groups(payload.get("include_groups"))
         outages = _filter_outages(
             date_filter=date_filter,
             street_filter=street_filter,
             area_filter=area_filter,
             include_groups=include_groups,
         )
-        return jsonify({"count": len(outages), "outages": outages})
+        return jsonify(outages)
 
     return app
 
