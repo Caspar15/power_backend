@@ -11,7 +11,12 @@ import urllib3
 from bs4 import BeautifulSoup
 from requests import Response
 
-from .processing import extract_address_candidates, is_cancelled_notice
+from .processing import (
+    extract_address_candidates,
+    extract_notice_reason,
+    is_cancelled_notice,
+    normalize_time_window,
+)
 
 BASE_PAGE = "https://www.taipower.com.tw/2289/2406/2420/2421/11934/"
 USER_AGENT = "TaipowerCrawler/1.0 (+github.com/codex-taipower-crawler)"
@@ -116,6 +121,8 @@ def parse_branch_tables(html: str) -> List[dict]:
             note_text = cells[1].get_text("\n", strip=True)
             if not (time_text or note_text):
                 continue
+            normalized_window = normalize_time_window(time_text)
+            reason = extract_notice_reason(note_text)
             addresses = extract_address_candidates(note_text)
             cancelled = is_cancelled_notice(caption_text, note_text, time_text)
             notices.append(
@@ -123,7 +130,8 @@ def parse_branch_tables(html: str) -> List[dict]:
                     "caption": caption_text,
                     "date": iso_date,
                     "roc_date": roc_date,
-                    "time_window": time_text,
+                    "time_window": normalized_window or time_text or None,
+                    "reason": reason,
                     "description": note_text,
                     "addresses": addresses,
                     "cancelled": cancelled,

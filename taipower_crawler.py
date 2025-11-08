@@ -323,6 +323,8 @@ def main() -> int:
                 "caption": notice.get("caption"),
                 "date": notice.get("date"),
                 "roc_date": notice.get("roc_date"),
+                "time_window": notice.get("time_window"),
+                "reason": notice.get("reason"),
                 "description": notice.get("description"),
                 "type": notice.get("type"),
                 "addresses": notice.get("addresses"),

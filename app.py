@@ -58,8 +58,8 @@ def create_app() -> Flask:
                 payload = {
                     "date": notice.get("date"),
                     "time_window": notice.get("time_window"),
+                    "reason": notice.get("reason"),
                     "type": notice.get("type"),
-                    "cities": notice.get("cities"),
                     "areas": notice.get("areas"),
                     "addresses": notice.get("addresses"),
                     "address_entry_count": notice.get("address_entry_count"),

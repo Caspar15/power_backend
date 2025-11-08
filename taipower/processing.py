@@ -323,6 +323,28 @@ def extract_city_area(text: str) -> tuple[Optional[str], Optional[str]]:
     return match.group("city"), match.group("area")
 
 
+def extract_notice_reason(description: str) -> Optional[str]:
+    if not description:
+        return None
+    for line in description.splitlines():
+        candidate = line.strip()
+        if candidate:
+            return candidate
+    return None
+
+
+def normalize_time_window(text: str) -> Optional[str]:
+    if not text:
+        return None
+    normalized = normalize_text(text)
+    normalized = normalized.replace("點", "時").replace("点", "時")
+    normalized = normalized.replace("﹕", ":").replace("：", ":")
+    normalized = re.sub(r"\s*-\s*", " - ", normalized)
+    normalized = re.sub(r"\s*至\s*", " - ", normalized)
+    normalized = normalized.strip()
+    return normalized or None
+
+
 __all__ = [
     "FULLWIDTH_TRANSLATION",
     "STOPWORDS",
@@ -333,4 +355,6 @@ __all__ = [
     "address_priority",
     "derive_street_labels",
     "extract_city_area",
+    "extract_notice_reason",
+    "normalize_time_window",
 ]
